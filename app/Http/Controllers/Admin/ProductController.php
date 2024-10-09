@@ -16,6 +16,8 @@ class ProductController extends Controller
     {
         $products = Product::all();
 
+        confirmDelete('Hapus Data!', 'Apakah anda yakin ingin menghapus data ini?');
+
         return view('pages.admin.product.index', compact('products'));
     }
     
@@ -57,5 +59,96 @@ class ProductController extends Controller
         }
     
         return redirect()->back()->with('error', 'Produk gagal ditambahkan!');
+        
     }
+    public function detail($id)
+    {
+        $product = Product::findOrFail($id);
+
+        return view('pages.admin.product.detail', compact('product'));
+    }
+
+    public function edit($id)
+    {
+        $product = Product::findOrFail($id);
+
+        return view('pages.admin.product.edit', compact('product'));
+    }
+    public function update(Request $request, $id)
+{
+    // Validasi input yang dikirim melalui form
+    $validator = Validator::make($request->all(), [
+        'name' => 'required',
+        'price' => 'numeric',
+        'category' => 'required',
+        'description' => 'required',
+        'image' => 'nullable|mimes:png,jpeg,jpg',
+    ]);
+
+    // Jika validasi gagal
+    if ($validator->fails()) {
+        Alert::error('Gagal', 'Pastikan semua terisi dengan benar!');
+        return redirect()->back();
+    }
+
+    // Temukan produk berdasarkan ID
+    $product = Product::findOrFail($id);
+
+    // Jika ada file gambar baru yang di-upload
+    if ($request->hasFile('image')) {
+        $oldPath = public_path('images/' . $product->image);
+        
+        // Hapus gambar lama jika ada
+        if (File::exists($oldPath)) {
+            File::delete($oldPath);
+        }
+
+        // Simpan gambar baru
+        $image = $request->file('image');
+        $imageName = time() . '.' . $image->getClientOriginalExtension();
+        $image->move('images', $imageName);
+    } else {
+        // Jika tidak ada gambar baru, tetap gunakan gambar lama
+        $imageName = $product->image;
+    }
+
+    // Update produk dengan data baru
+    $product->update([
+        'name' => $request->name,
+        'price' => $request->price,
+        'category' => $request->category,
+        'description' => $request->description,
+        'image' => $imageName,
+    ]);
+
+    // Cek apakah update berhasil
+    if ($product) {
+        Alert::success('Berhasil', 'Produk berhasil diperbarui!');
+        return redirect()->route('admin.product');
+    } else {
+        Alert::error('Gagal', 'Produk gagal diperbarui!');
+        return redirect()->back();
+        }
+    }
+     
+    //fungsi hapus
+    public function delete($id)
+{
+    $product = Product::findOrFail($id);
+
+    $oldPath = public_path('images/' . $product->image);
+    if (File::exists($oldPath)) {
+        File::delete($oldPath);
+    }
+
+    $product->delete();
+
+    if ($product) {
+        Alert::success('Berhasil!', 'Produk berhasil dihapus!');
+        return redirect()->back();
+    } else {
+        Alert::error('Gagal!', 'Produk gagal dihapus!');
+        return redirect()->back();
+    }
+}
 }
